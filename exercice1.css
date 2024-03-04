@@ -1,0 +1,22 @@
+h1{
+        border-style: dotted;
+        border-color: red;
+    }
+p{
+    border-style: dashed;
+    border-color: black;
+    color: green;
+}
+table{
+    border-collapse: collapse;
+}
+td,th{
+    border: 3px solid black;
+}
+body {
+    background-image: url("https://upload.wikimedia.org/wikipedia/commons/thumb/b/b9/Marvel_Logo.svg/640px-Marvel_Logo.svg.png");
+    background-repeat: no-repeat;
+    background-size: cover;
+    background-attachment: fixed;
+    background-position: center;
+}

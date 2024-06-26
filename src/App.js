@@ -6,7 +6,7 @@ const Header = () => (
     <nav className="flex justify-end items-center">
       <a className="text-white ml-2.5 transition-colors hover:text-navLinkHover" href="#home">Home</a>
       <a className="text-white ml-2.5 transition-colors hover:text-navLinkHover" href="#about">About</a>
-      <a className="text-white ml-2.5 transition-colors hover:text-navLinkHover" href="#contact">Contact</a>
+      <a className="text-white ml-2.5 transition-colors hover:text-navLinkHover" href="#contact">Contacts</a>
     </nav>
   </header>
 );

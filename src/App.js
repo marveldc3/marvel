@@ -1,87 +1,256 @@
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import axios from 'axios';
 
-const Header = () => (
-  <header className="flex justify-between items-center p-headerPadding bg-navBackground shadow-navShadow">
-    <h1>My App</h1>
-    <nav className="flex justify-end items-center">
-      <a className="text-white ml-2.5 transition-colors hover:text-navLinkHover" href="#home">Home</a>
-      <a className="text-white ml-2.5 transition-colors hover:text-navLinkHover" href="#about">About</a>
-      <a className="text-white ml-2.5 transition-colors hover:text-navLinkHover" href="#contact">Contacts</a>
-    </nav>
-  </header>
-);
+function App() {
+  // User authentication state
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
-const Form = () => (
-  <div className="form flex flex-col items-center">
-    <h2 className="form__title mb-formTitleMarginBottom">Sign Up</h2>
-    <form className="form__form flex flex-col w-75">
-      <input className="form__input p-formInputPadding mb-formInputMarginBottom border border-gray-300 rounded-formInput transition-colors focus:border-primary" type="text" placeholder="Name" />
-      <input className="form__input p-formInputPadding mb-formInputMarginBottom border border-gray-300 rounded-formInput transition-colors focus:border-primary" type="email" placeholder="Email" />
-      <button className="form__button p-formButtonPadding bg-buttonBackground text-white border-0 rounded-formButton cursor-pointer transition-colors hover:bg-buttonHover" type="submit">Submit</button>
-    </form>
-  </div>
-);
+  // Comic management state
+  const [comics, setComics] = useState([]);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [newComicName, setNewComicName] = useState('');
+  const [newComicDescription, setNewComicDescription] = useState('');
+  const [newComicPrice, setNewComicPrice] = useState('');
 
-const Main = () => (
-  <main className="app__main grid grid-cols-[repeat(auto-fit,minmax(300px,1fr))] gap-mainGap p-mainPadding">
-    <Form />
-    <div className="comic-management grid grid-cols-[repeat(auto-fit,minmax(250px,1fr))] gap-comicManagementGap bg-cover bg-fixed text-black">
-      <h2 className="comic-management__title mb-comicManagementTitleMarginBottom">Comic Management</h2>
-      <form className="comic-management__form grid grid-cols-[repeat(auto-fit,minmax(250px,1fr))] gap-comicManagementGap">
-        <input className="comic-management__input p-comicManagementInputPadding mb-comicManagementInputMarginBottom border border-gray-300 rounded-formInput transition-colors focus:border-primary" type="text" placeholder="Comic Name" />
-        <button className="comic-management__button p-comicManagementButtonPadding bg-buttonBackground text-white border-0 rounded-formButton cursor-pointer transition-colors hover:bg-buttonHover" type="submit">Add Comic</button>
+  // Chat state
+  const [messages, setMessages] = useState([]);
+  const [messageInput, setMessageInput] = useState('');
+  const wsRef = useRef(null);
+
+  // User authentication functions
+  const handleLogin = async (event) => {
+    event.preventDefault();
+    try {
+      const response = await axios.post('/api/login', { email, password });
+      localStorage.setItem('token', response.data.token);
+      setIsAuthenticated(true);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  const handleRegister = async (event) => {
+    event.preventDefault();
+    try {
+      const response = await axios.post('/api/register', {
+        email,
+        password,
+      });
+      localStorage.setItem('token', response.data.token);
+      setIsAuthenticated(true);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  // Comic management functions
+  useEffect(() => {
+    const fetchComics = async () => {
+      const response = await axios.get(`/api/comics?page=${page}`);
+      setComics((prevComics) => [...prevComics, ...response.data]);
+      setPage((prevPage) => prevPage + 1);
+      if (response.data.length < 10) {
+        setHasMore(false);
+      }
+    };
+    fetchComics();
+  }, [page]);
+
+  const handleAddComic = async (event) => {
+    event.preventDefault();
+    try {
+      const response = await axios.post(
+        '/api/comics',
+        {
+          name: newComicName,
+          description: newComicDescription,
+          price: newComicPrice,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem('token')}`,
+          },
+        }
+      );
+      setComics((prevComics) => [...prevComics, response.data]);
+      setNewComicName('');
+      setNewComicDescription('');
+      setNewComicPrice('');
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  // Chat functions
+  useEffect(() => {
+    const ws = new WebSocket('ws://localhost:3000/ws');
+    wsRef.current = ws;
+
+    ws.onopen = () => {
+      console.log('Connected to WebSocket server.');
+    };
+
+    ws.onmessage = (event) => {
+      const message = JSON.parse(event.data);
+      setMessages((prevMessages) => [...prevMessages, message]);
+    };
+
+    return () => {
+      ws.close();
+    };
+  }, []);
+
+  const handleSendMessage = () => {
+    if (!messageInput.trim()) {
+      return;
+    }
+    const message = {
+      content: messageInput,
+      username: 'Anonymous',
+    };
+    wsRef.current.send(JSON.stringify(message));
+    setMessages((prevMessages) => [...prevMessages, message]);
+    setMessageInput('');
+  };
+
+  // Render functions
+  const renderLoginForm = () => {
+    return (
+      <form onSubmit={handleLogin}>
+        <label>
+          Email:
+          <input
+            type="email"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+          />
+        </label>
+        <label>
+          Password:
+          <input
+            type="password"
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+          />
+        </label>
+        <button type="submit">Login</button>
       </form>
-      <ul className="comic-management__list list-none p-0">
-        <li className="p-comicManagementListItemPadding border border-gray-300 rounded-comicManagementListItem mb-comicManagementInputMarginBottom">Comic 1</li>
-        <li className="p-comicManagementListItemPadding border border-gray-300 rounded-comicManagementListItem mb-comicManagementInputMarginBottom">Comic 2</li>
-      </ul>
+    );
+  };
+
+  const renderRegisterForm = () => {
+    return (
+      <form onSubmit={handleRegister}>
+        <label>
+          Email:
+          <input
+            type="email"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+          />
+        </label>
+        <label>
+          Password:
+          <input
+            type="password"
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+          />
+        </label>
+        <button type="submit">Register</button>
+      </form>
+    );
+  };
+
+  const renderComicManagement = () => {
+    return (
+      <div>
+        <form onSubmit={handleAddComic}>
+          <label>
+            Name:
+            <input
+              type="text"
+              value={newComicName}
+              onChange={(event) => setNewComicName(event.target.value)}
+            />
+          </label>
+          <label>
+            Description:
+            <input
+              type="text"
+              value={newComicDescription}
+              onChange={(event) => setNewComicDescription(event.target.value)}
+            />
+          </label>
+          <label>
+            Price:
+            <input
+              type="number"
+              value={newComicPrice}
+              onChange={(event) => setNewComicPrice(event.target.value)}
+            />
+          </label>
+          <button type="submit">Add Comic</button>
+        </form>
+        <InfiniteScroll
+          dataLength={comics.length}
+          next={() => setPage((prevPage) => prevPage + 1)}
+          hasMore={hasMore}
+          loader={<h4>Loading...</h4>}
+          endMessage={<h4>No more comics to load.</h4>}
+        >
+          {comics.map((comic) => (
+            <div key={comic.id}>
+              <h2>{comic.name}</h2>
+              <p>{comic.description}</p>
+              <p>{comic.price}</p>
+            </div>
+          ))}
+        </InfiniteScroll>
+      </div>
+    );
+  };
+
+  const renderChat = () => {
+    return (
+      <div>
+        <ul>
+          {messages.map((message, index) => (
+            <li key={index}>
+              <strong>{message.username}:</strong> {message.content}
+            </li>
+          ))}
+        </ul>
+        <input
+          type="text"
+          value={messageInput}
+          onChange={(event) => setMessageInput(event.target.value)}
+        />
+        <button onClick={handleSendMessage}>Send</button>
+      </div>
+    );
+  };
+
+  // Main render function
+  return (
+    <div>
+      {!isAuthenticated && (
+        <>
+          {renderLoginForm()}
+          {renderRegisterForm()}
+        </>
+      )}
+      {isAuthenticated && (
+        <>
+          {renderComicManagement()}
+          {renderChat()}
+        </>
+      )}
     </div>
-  </main>
-);
-
-const Chat = () => (
-  <div className="chat flex flex-col p-chatPadding border border-gray-300 rounded-chat max-h-[400px] overflow-y-auto">
-    <h2 className="chat__title mb-5">Chat</h2>
-    <ul className="chat__list list-none p-0 mb-chatListMarginBottom">
-      <li className="p-chatListItemPadding border border-gray-300 rounded-chatListItem mb-comicManagementInputMarginBottom">Message 1</li>
-      <li className="p-chatListItemPadding border border-gray-300 rounded-chatListItem mb-comicManagementInputMarginBottom">Message 2</li>
-    </ul>
-    <form className="chat__form flex flex-col">
-      <input className="chat__input p-comicManagementInputPadding mb-comicManagementInputMarginBottom border border-gray-300 rounded-formInput transition-colors focus:border-primary" type="text" placeholder="Type a message" />
-      <button className="chat__button p-comicManagementButtonPadding bg-buttonBackground text-white border-0 rounded-formButton cursor-pointer transition-colors hover:bg-buttonHover" type="submit">Send</button>
-    </form>
-  </div>
-);
-
-const Checkout = () => (
-  <div className="checkout flex flex-col p-checkoutPadding border border-gray-300 rounded-checkout">
-    <h2 className="checkout__title mb-5">Checkout</h2>
-    <form className="checkout__form flex flex-col">
-      <input className="checkout__input p-comicManagementInputPadding mb-comicManagementInputMarginBottom border border-gray-300 rounded-formInput transition-colors focus:border-primary" type="text" placeholder="Card Number" />
-      <button className="checkout__button p-comicManagementButtonPadding bg-buttonBackground text-white border-0 rounded-formButton cursor-pointer transition-colors hover:bg-buttonHover" type="submit">Pay</button>
-    </form>
-  </div>
-);
-
-const SupportTicket = () => (
-  <div className="support-ticket flex flex-col p-supportTicketPadding border border-gray-300 rounded-supportTicket">
-    <h2 className="support-ticket__title mb-5">Support Ticket</h2>
-    <form className="support-ticket__form flex flex-col">
-      <input className="support-ticket__input p-comicManagementInputPadding mb-comicManagementInputMarginBottom border border-gray-300 rounded-formInput transition-colors focus:border-primary" type="text" placeholder="Subject" />
-      <textarea className="support-ticket__textarea p-comicManagementInputPadding mb-comicManagementInputMarginBottom border border-gray-300 rounded-formInput transition-colors focus:border-primary" placeholder="Description"></textarea>
-      <button className="support-ticket__button p-comicManagementButtonPadding bg-buttonBackground text-white border-0 rounded-formButton cursor-pointer transition-colors hover:bg-buttonHover" type="submit">Submit</button>
-    </form>
-  </div>
-);
-
-const App = () => (
-  <>
-    <Header />
-    <Main />
-    <Chat />
-    <Checkout />
-    <SupportTicket />
-  </>
-);
+  );
+}
 
 export default App;
